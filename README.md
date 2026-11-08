@@ -66,6 +66,34 @@ All profiles use `-ngl 99 --cpu-moe`, one request slot, Flash Attention, q8_0 K/
 
 `results.csv` is an allowlisted numeric projection of the original native-Windows timing rows, including warmups. It excludes prompts, responses, timestamps, machine identifiers and private paths. Source evidence was the complete Windows lab report, recommended configuration JSON and validation measurements dated 2026-11-08; no inference was rerun to publish these repositories.
 
+### Repeated matched CPU-share controls — 8 November 2026
+
+These later controls are separate from the historical validation above and the earlier 384-token screens. At the selected profile (cache 4096 MiB, 8 threads, MTP2), only CPU miss share changed. Pooled decode harmonic means were **36.07 tokens/s at share 0** and **47.83 tokens/s at share 0.95**, a **+32.6%** gain. This does not replace the original selected-validation rate.
+
+| Workload | Share 0 tokens/s | Share 0.95 tokens/s | Gain |
+|---|---:|---:|---:|
+| explain | 35.67 | 46.65 | +30.8% |
+| code | 36.47 | 49.42 | +35.5% |
+| summary | 36.07 | 47.50 | +31.7% |
+
+| Block | Share 0 tokens/s | Share 0.95 tokens/s | Gain |
+|---|---:|---:|---:|
+| b1 | 36.52 | 45.61 | +24.9% |
+| b2 | 35.62 | 50.28 | +41.1% |
+
+- Share 0: measured-run range 33.83–37.76 tokens/s; sample CV 3.0%.
+- Share 0.95: measured-run range 42.70–53.82 tokens/s; sample CV 7.1%.
+
+#### Control method and scope
+
+[matched-controls.csv](matched-controls.csv) contains this model's 32 timing-only rows: eight fresh server configurations, eight 256-token warmups and 24 measured responses. Each of two blocks used ABBA order (share 0, 0.95, 0.95, 0); every configuration ran explanation, code and synthetic summary at 768 tokens after warmup. The model order was Qwen → Gemma → LFM in block 1 and reversed in block 2. This counterbalanced order was not randomized. There are 12 measured responses per share. All 96 responses across the three models (72 measured, 24 warmups) were independently verified unique and complete; none were retried or excluded. These are additional to the original 196-request investigation and three launcher smoke checks.
+
+The existing runtime, selected cache/context/thread/speculation settings, synthetic workloads and sampling/template protocol were retained. Qwen's matched cache is 4096 MiB, unlike its historical 3072 MiB share screen. Harmonic means use server decode rates with warmups excluded; gain is `(share095 / share0 - 1) * 100`. Block rates pool six responses per share; workload rates pool four. CV is sample standard deviation divided by arithmetic mean. CSV IDs encode model, block, position and share; `draft` is configured maximum draft tokens, `draft_n`/`accepted` are server draft counters where available. No prompts, answers, timestamps, host identifiers, telemetry or private paths are published.
+
+AC power and the effective Windows Best performance overlay were observed without changing settings. GPU sampling covered loading, warmups and measurements, but there was no synchronized per-request CPU/package-power or effective-frequency readback; telemetry cannot establish clock/power causality. An auxiliary read-only power-mode probe failed and was retried during the first Qwen share-0.95 entry; that entry remains included. The worker's final expected-count expression failed after inference; independent verification confirmed all 24 configurations and 96 responses, correct sequence, and no remaining benchmark server/listener. No inference rerun was needed.
+
+These are throughput-only controls on one laptop, runtime and three fixed workloads. They do not establish output-quality equivalence, long-context performance, statistical population confidence or a universal optimum. Cache history, expert routing, desktop activity and clocks remain possible sources of variation.
+
 ### Method and reproducibility
 
 Start a fresh server, wait for health, then in a second PowerShell window run:
@@ -80,4 +108,4 @@ The benchmark sends only bundled synthetic workloads to localhost and writes tim
 
 Aggregate = `3 / (1/r1 + 1/r2 + 1/r3)` using server-reported decode rates, excluding warmup. The server reports 767 timed token intervals for 768-token output, so requested token count divided by decode time is slightly different. These are decode-only rates, not prompt processing or end-to-end response speed; CSV also retains prefill and wall timings.
 
-Across all three models, the investigation recorded 196 requests including warmups, plus three launcher smoke checks. Early raw-prompt median screens and later chat-templated harmonic means are distinct protocols. Longer validation restarted selected candidates and changed model order; this was not randomized repeated crossover testing. Cache history, expert routes, desktop activity and GPU clocks can affect results. No near-limit context throughput, accuracy equivalence of speculative/plain output, hallucination rate or coding success is established. Different models' reasoning behavior makes output-token comparisons imperfect. Reproduce on your own system before drawing broader conclusions.
+The original investigation across all three models recorded 196 requests including warmups, plus three launcher smoke checks; the later repeated controls add 96 requests as detailed above. Early raw-prompt median screens and later chat-templated harmonic means are distinct protocols. Longer validation restarted selected candidates and changed model order; this was not randomized repeated crossover testing. Cache history, expert routes, desktop activity and GPU clocks can affect results. No near-limit context throughput, accuracy equivalence of speculative/plain output, hallucination rate or coding success is established. Different models' reasoning behavior makes output-token comparisons imperfect. Reproduce on your own system before drawing broader conclusions.
