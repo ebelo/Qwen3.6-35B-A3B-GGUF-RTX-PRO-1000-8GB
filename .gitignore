@@ -1,0 +1,9 @@
+runtime/
+models/
+benchmark-results/
+*.gguf
+*.exe
+*.dll
+*.zip
+*.log
+__pycache__/
