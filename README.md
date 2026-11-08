@@ -1,8 +1,8 @@
 # Qwen3.6-35B-A3B on RTX PRO 1000 8 GB — Windows GGUF recipe
 
-A standalone, native-Windows llama.cpp profile measured on **8 November 2026**. Selected longer-validation decode rate: **48.22 tokens/s**. This is a tested profile for one system, not a universal best configuration or a speed guarantee.
+A standalone, native-Windows llama.cpp profile measured on **8 November 2026**. Latest repeated comparisons reached **46–48 tokens/s** with the complete configuration. The earlier selected longer-validation rate was **48.22 tokens/s**. This is a tested profile for one system, not a universal best configuration or a speed guarantee.
 
-Most expert weights remain in system RAM; a GPU expert cache and CPU execution of eligible cache misses make the model usable with 8 GB VRAM. See [CPU miss handling PR #30966](https://github.com/ggml-org/llama.cpp/pull/30966) and [speculative decoding](https://github.com/ggml-org/llama.cpp/blob/b12201/docs/speculative.md).
+The runtime is **llama.cpp, an open-source inference library**. Most expert weights remain in system RAM; a GPU expert cache and CPU execution of eligible cache misses make the model usable with 8 GB VRAM. See [CPU miss handling PR #30966](https://github.com/ggml-org/llama.cpp/pull/30966) and [speculative decoding](https://github.com/ggml-org/llama.cpp/blob/b12201/docs/speculative.md).
 
 ## Requirements and runtime
 
@@ -55,7 +55,33 @@ Run in a PowerShell session permitted by your local script policy. `-PrintComman
 
 All profiles use `-ngl 99 --cpu-moe`, one request slot, Flash Attention, q8_0 K/V caches, batch 512, microbatch 256, `--fit off`, Jinja templates and prompt caching requested off. `Start-Model.ps1` contains the full recorded benchmark arguments with only portable paths and configurable port substituted; `profile.json` summarizes the selection. The newly packaged launcher has been command/parse checked, not rebenchmarked. The original main launcher passed health and 64-token generation checks after profile installation.
 
-## Benchmark evidence
+## Latest repeated benchmark evidence
+
+The retained runtime, model and launcher settings are unchanged. Two later experiments clarify the contributions and their interaction:
+
+| Chronological configuration | Decode tokens/s |
+|---|---:|
+| Automatic static fit, no MTP | 30.57 |
+| Static fit + MTP | 35.62 |
+| Expert cache + MTP, CPU miss share 0 | 34.26 |
+| Expert cache + MTP, CPU miss share 0.95 | **47.90** |
+
+The full strategy gained **56.7%** over static fitting without MTP. Contributions arrived in May (MTP), October (expert caching), and November (CPU miss execution), but every point uses the same b12201 build. Step gains are conditional, not independent feature contributions. The intermediate cache stage was 3.8% slower than static fitting with MTP.
+
+A separate matched comparison kept the 4096 MiB cache enabled throughout:
+
+| Expert-cache miss handling | MTP off | MTP on (max 2 draft tokens) |
+|---|---:|---:|
+| Upload misses for GPU execution, share 0 | 30.51 | 34.47 |
+| CPU handling of eligible misses, share 0.95 | 32.67 | **46.11** |
+
+MTP gained **13.0%** with share 0 versus **41.1%** with share 0.95. CPU miss handling gained **7.1%** without MTP versus **33.8%** with it. Together they gained **51.1%** over neither feature within the cache-enabled strategy. Both test blocks showed a positive interaction, with varying magnitude; timings do not establish its mechanism. This is not a three-way factorial test because the cache stayed enabled.
+
+Each experiment used eight fresh servers, eight warmups and 24 measured responses across three workloads and two reversed-order blocks. These are short-prompt, 768-output-token decode rates, not full-context or quality results. **The experiments have different baselines and must not be pooled.**
+
+See [BENCHMARKS.md](BENCHMARKS.md) for methods, block variability, execution caveats and calculations; [chronological-controls.csv](chronological-controls.csv) and [factorial-controls.csv](factorial-controls.csv) publish sanitized timing/configuration rows. Earlier validation and controls below remain historical, separate observations.
+
+## Earlier benchmark evidence
 
 | 768-token workload | Server decode tokens/s |
 |---|---:|
